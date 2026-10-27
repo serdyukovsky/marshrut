@@ -1,0 +1,6 @@
+customtkinter
+requests
+openpyxl
+pypdf
+pypdfium2
+xlrd
