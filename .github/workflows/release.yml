@@ -1,0 +1,70 @@
+# Сборка установочных архивов для Windows и Mac.
+# Запускается, когда в репозиторий добавляется метка версии (v1, v2, …), или вручную на вкладке Actions.
+name: Сборка программы
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Библиотеки
+        run: pip install -r requirements.txt pyinstaller
+      - name: Сборка exe
+        run: >
+          pyinstaller --onefile --noconsole --name "Маршрутный лист"
+          --collect-all customtkinter --collect-all pypdfium2 --collect-all pypdfium2_raw
+          --hidden-import xlrd launcher.py
+      - name: Архив
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pkg | Out-Null
+          Copy-Item "dist/Маршрутный лист.exe" pkg/
+          Copy-Item marshrut.py pkg/
+          Copy-Item "windows/Как установить.txt" pkg/
+          Compress-Archive -Path pkg/* -DestinationPath Marshrut-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: Marshrut-Windows.zip
+
+  mac:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Архив
+        run: |
+          mkdir -p "pkg/Маршрутный лист"
+          cp marshrut.py requirements.txt mac/*.command "mac/Как установить.txt" "pkg/Маршрутный лист/"
+          chmod +x "pkg/Маршрутный лист/"*.command
+          cd pkg && zip -r ../Marshrut-Mac.zip "Маршрутный лист"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: Marshrut-Mac.zip
+
+  release:
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: Маршрутный лист ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          make_latest: true
+          files: |
+            Marshrut-Windows.zip
+            Marshrut-Mac.zip
