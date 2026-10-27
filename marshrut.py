@@ -22,8 +22,8 @@ from datetime import datetime, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 
-VERSION = "27.10 · 12:30"
-BUILD = "2026.10.27.1230"  # номер для автообновления — тот же, что в version.txt на GitHub
+VERSION = "27.10 · 13:15"
+BUILD = "2026.10.27.1315"  # номер для автообновления — тот же, что в version.txt на GitHub
 UPDATE_BASE = "https://raw.githubusercontent.com/serdyukovsky/marshrut/main/"
 BASE = "https://api.moysklad.ru/api/remap/1.2"
 # папка программы: рядом с .exe (если собрано) или со скриптом
@@ -1341,7 +1341,7 @@ def time_window(text, day):
     wd = day.weekday()
     for line in re.split(r"[\n;]+", yo(text or "")):
         # «касса до 13-00», «оплата до…», «бухгалтерия…», «обед с 13 до 14» — не про приём товара
-        line = re.sub(r"\b(?:касс|оплат|бухгалтер|бух\b|обед|перерыв)[^,.;]*", " ", line)
+        line = re.sub(r"\b(?:касс|оплат|бухгалтер|бух\b|обед|перерыв|звон)[^,.;]*", " ", line)
         days = [i for i, (full, short) in enumerate(WEEKDAYS)
                 if full in line or re.search(r"\b%s\b" % short, line)]
         if days and wd not in days:
@@ -1355,6 +1355,14 @@ def time_window(text, day):
             h, mm = int(m.group(1)), int(m.group(2) or 0)
             if 6 <= h <= 23 and (m.group(2) or h >= 9):  # «до 16», «до 16:00»; «до 5» — не время
                 latest = min(latest or 24 * 60, h * 60 + mm)
+        # «работают с 12», «с 12:00», «открываются в 11», «от 10 ч» — без «до»
+        for m in re.finditer(r"(?:\bс|\bот|\bоткрыва[а-я]*\s+в)\s*%s\s*(?:ч\b\.?|час[а-я]*|утра)?"
+                             r"(?!\s*(?:до|-|–|—)\s*\d)(?!\s*(?:шт|кор|пач|уп|кг|руб|р\b|%%|янв|фев|мар|апр|ма[йя]"
+                             r"|июн|июл|авг|сен|окт|ноя|дек|числ|по\b))(?![\d:.\-])" % hhmm, line):
+            h, mm = int(m.group(1)), int(m.group(2) or 0)
+            dot = re.search(r"\d\s*\.\s*\d", m.group(0))
+            if 6 <= h <= 22 and mm < 60 and not (dot and mm not in (0, 15, 30, 45)):  # «с 12.10» — скорее дата
+                earliest = max(earliest or 0, h * 60 + mm)
         for m in re.finditer(r"\bпосле\s*%s" % hhmm, line):
             h, mm = int(m.group(1)), int(m.group(2) or 0)
             if 6 <= h <= 22:
