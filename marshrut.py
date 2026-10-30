@@ -22,8 +22,8 @@ from datetime import datetime, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side
 
-VERSION = "27.10 · 13:15"
-BUILD = "2026.10.27.1315"  # номер для автообновления — тот же, что в version.txt на GitHub
+VERSION = "30.10 · 14:00"
+BUILD = "2026.10.30.1400"  # номер для автообновления — тот же, что в version.txt на GitHub
 UPDATE_BASE = "https://raw.githubusercontent.com/serdyukovsky/marshrut/main/"
 BASE = "https://api.moysklad.ru/api/remap/1.2"
 # папка программы: рядом с .exe (если собрано) или со скриптом
@@ -2971,8 +2971,12 @@ def gui():
                 res[0], lambda p: send_to_print(p, cfg["print_mode"])), cancel=stop)
 
         def set_all(val):
-            for v in v_upd:
-                v.set(val)
+            """«Снять все» — снимает всё: реализации, ТТН и счета.
+            «Выбрать все» — все реализации, а счета и ТТН — как программа предложила изначально."""
+            for o, vu, vi, vt in zip(orders, v_upd, v_inv, v_ttn):
+                vu.set(val)
+                vi.set(bool(val and o["print_inv"]))
+                vt.set(bool(val and o.get("print_ttn", False)))
 
         small = dict(height=40, corner_radius=10, font=F(13), fg_color=C["card"], hover_color=C["line"],
                      text_color=C["text"], border_width=1, border_color=C["line"])
